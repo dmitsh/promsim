@@ -11,7 +11,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-func StartTarget(addr, prefix, step string, sets int) error {
+func StartTarget(addr, step string, sets int) error {
 	sleepTime, err := time.ParseDuration(step)
 	if err != nil {
 		return err

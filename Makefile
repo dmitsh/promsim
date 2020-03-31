@@ -1,7 +1,7 @@
 all: promsim
 
 promsim:
-	go build ./cmd/promsim
+	CGO_ENABLED=0 go build -a -ldflags '-extldflags "-static"' ./cmd/promsim/
 
 clean:
 	rm -f ./promsim

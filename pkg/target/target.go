@@ -54,8 +54,8 @@ func StartTarget(addr, step string, sets int) error {
 	reg.MustRegister(histogram)
 	reg.MustRegister(summary)
 
-	hostValues := []string{"10.2.0.4", "10.2.0.5", "10.3.0.6"}
-	moduleValues := []string{"server", "redis"}
+	host := addr
+	moduleValues := []string{"frontend", "backend", "api"}
 	pathValues := []string{"/api", "/home", "/auth"}
 	setValues := make([]string, sets)
 	for i := range setValues {
@@ -65,13 +65,12 @@ func StartTarget(addr, step string, sets int) error {
 
 	go func() {
 		for {
-			for h, host := range hostValues {
-				for m, module := range moduleValues {
+			for m, module := range moduleValues {
+				for p, path := range pathValues {
 					for s, set := range setValues {
-						path := pathValues[rand.Intn(len(pathValues))]
 						status := generateStatusCode()
 
-						cpuKey := fmt.Sprintf("%d.%d.%d", h, m, s)
+						cpuKey := fmt.Sprintf("%d.%d.%d", m, p, s)
 						cpu, ok := cpuPercent[cpuKey]
 						if !ok {
 							cpu = (float64)(40 + rand.Intn(40))

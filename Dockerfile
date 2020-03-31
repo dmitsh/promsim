@@ -1,6 +1,11 @@
-FROM ubuntu:18.04
+FROM alpine:3.11
 
-RUN apt-get update \
-    && apt-get -y install curl vim
+RUN apk update && \
+    apk upgrade && \
+    rm -rf /var/cache/apk/*
 
 COPY promsim /bin/promsim
+
+USER nobody
+
+ENTRYPOINT ["/bin/promsim", "target"]

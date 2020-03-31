@@ -15,7 +15,7 @@ func main() {
 	)
 
 	tgt := kingpin.Command("target", "Start metrics generating target")
-	tgt.Flag("address", "scraping endpoint address.").Short('a').Default("127.0.0.1:80").StringVar(&address)
+	tgt.Flag("address", "scraping endpoint address.").Short('a').Default(":8080").StringVar(&address)
 	tgt.Flag("sets", "number of time series sets.").Short('n').Default("1").IntVar(&sets)
 	tgt.Flag("rate", "time interval between two metric updates.").Short('r').Default("1s").StringVar(&step)
 

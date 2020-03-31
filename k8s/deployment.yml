@@ -1,0 +1,28 @@
+apiVersion: apps/v1 
+kind: Deployment
+metadata:
+  name: promsim
+  labels:
+    app: promsim
+spec:
+  selector:
+    matchLabels:
+      app: promsim
+  replicas: 1
+  template:
+    metadata:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+      labels:
+        app: promsim
+    spec:
+      containers:
+      - name: promsim
+        image: docker.io/dmitsh/promsim:0.2
+        imagePullPolicy: IfNotPresent
+        args:
+        - "--sets=1"
+        - "--address=:8080"
+        ports:
+        - containerPort: 8080

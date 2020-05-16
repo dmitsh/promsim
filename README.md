@@ -15,8 +15,13 @@ Parameters:
 |Long Option|Short Option|Value      |Description|
 |:---------:|:----------:|:---------:|-----------|
 |--address  |-a          |address    |Scraping endpoint address. Default `127.0.0.1:80` |
-|--sets     |-n          |int        |Number of metric sets (about 500 time series per set). Default `1` |
+|--metrics  |-m          |string     |Metrics path. Default `/metrics` |
+|--job      |-j          |string     |The value of the `job` label (if specified). |
+|--sets     |-n          |int        |Number of metric sets. Default `1` |
 |--rate     |-r          |duration   |Time interval between two metric updates. Default `1s` |
+|--tls.enable|           |bool       |Enable TLS. Default `false`|
+|--tls.key   |           |path       |Server key path|
+|--tls.cert  |           |path       |Server certificate path|
 
 ### Building
 
@@ -27,21 +32,26 @@ $ make
 #### Running in Docker container
 
 ```bash
-docker run --rm -p 8080:8080 docker.io/dmitsh/promsim:0.2 --help
+docker run --rm -p 8080:8080 docker.io/dmitsh/promsim:0.3 --help
 usage: promsim target [<flags>]
 
-Start metrics generating target
+Start metrics generating target.
 
 Flags:
-      --help             Show context-sensitive help (also try --help-long and
-                         --help-man).
-  -a, --address=":8080"  scraping endpoint address.
-  -n, --sets=1           number of time series sets.
-  -r, --rate="1s"        time interval between two metric updates.
+      --help                Show context-sensitive help (also try --help-long
+                            and --help-man).
+  -a, --address=":8080"     scraping endpoint address.
+  -m, --metrics="/metrics"  metrics path.
+  -j, --job=JOB             job name.
+  -n, --sets=1              number of time series sets.
+  -r, --rate="1s"           time interval between two metric updates.
+      --tls.enabled         enable TLS.
+      --tls.key=TLS.KEY     path to the server key.
+      --tls.cert=TLS.CERT   path to the server certificate.
 ```
 
 ```bash
-docker run --rm -p 8080:8080 docker.io/dmitsh/promsim:0.2
+docker run --rm -p 8080:8080 docker.io/dmitsh/promsim:0.3
 ```
 
 #### Probing Prometheus endpoint

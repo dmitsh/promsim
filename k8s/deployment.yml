@@ -19,7 +19,7 @@ spec:
     spec:
       containers:
       - name: promsim
-        image: docker.io/dmitsh/promsim:0.2
+        image: docker.io/dmitsh/promsim:0.3
         imagePullPolicy: IfNotPresent
         args:
         - "--sets=1"

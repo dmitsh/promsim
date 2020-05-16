@@ -5,14 +5,26 @@ import (
 	"math"
 	"math/rand"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-func StartTarget(addr, step string, sets int) error {
-	sleepTime, err := time.ParseDuration(step)
+type Config struct {
+	Address     string
+	MetricsPath string
+	JobName     string
+	Sets        int
+	UpdateRate  string
+	TlsEnabled  bool
+	TlsKeyPath  string
+	TlsCertPath string
+}
+
+func StartTarget(cfg *Config) error {
+	sleepTime, err := time.ParseDuration(cfg.UpdateRate)
 	if err != nil {
 		return err
 	}
@@ -21,43 +33,43 @@ func StartTarget(addr, step string, sets int) error {
 
 	reg := prometheus.NewRegistry()
 
+	gaugeLabelNames := []string{"host", "module", "set"}
+	labelNames := []string{"host", "module", "set", "path", "status_code"}
+	if len(cfg.JobName) > 0 {
+		gaugeLabelNames = append(gaugeLabelNames, "job")
+		labelNames = append(labelNames, "job")
+	}
 	gauge := prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Name: "cpu_percent_used",
 			Help: "CPU percent used.",
-		},
-		[]string{"host", "module", "set"})
+		}, gaugeLabelNames)
 	counter := prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "http_requests_total",
 			Help: "Total number of HTTP requests.",
-		},
-		[]string{"host", "module", "set", "path", "status_code"})
+		}, labelNames)
 	histogram := prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Name:    "request_duration_seconds",
 			Help:    "Time (in seconds) spent serving HTTP requests.",
 			Buckets: prometheus.DefBuckets,
-		},
-		[]string{"host", "module", "set", "path", "status_code"})
-
+		}, labelNames)
 	summary := prometheus.NewSummaryVec(
 		prometheus.SummaryOpts{
 			Name:       "response_size_bytes",
 			Help:       "Response size in bytes.",
 			Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
-		},
-		[]string{"host", "module", "set", "path", "status_code"})
+		}, labelNames)
 
 	reg.MustRegister(counter)
 	reg.MustRegister(gauge)
 	reg.MustRegister(histogram)
 	reg.MustRegister(summary)
 
-	host := addr
 	moduleValues := []string{"frontend", "backend", "api"}
 	pathValues := []string{"/api", "/home", "/auth"}
-	setValues := make([]string, sets)
+	setValues := make([]string, cfg.Sets)
 	for i := range setValues {
 		setValues[i] = fmt.Sprintf("%d", i+1)
 	}
@@ -65,33 +77,46 @@ func StartTarget(addr, step string, sets int) error {
 
 	go func() {
 		for {
+			host := cfg.Address
 			for m, module := range moduleValues {
-				for p, path := range pathValues {
-					for s, set := range setValues {
-						status := generateStatusCode()
+				for s, set := range setValues {
+					path := pathValues[rand.Intn(len(pathValues))]
+					status := generateStatusCode()
 
-						cpuKey := fmt.Sprintf("%d.%d.%d", m, p, s)
-						cpu, ok := cpuPercent[cpuKey]
-						if !ok {
-							cpu = (float64)(40 + rand.Intn(40))
-						}
-						// change cpu percent +/- 2 range
-						cpu = math.Abs(cpu + (float64)(2-rand.Intn(5)))
-						cpuPercent[cpuKey] = cpu
-
-						gauge.WithLabelValues(host, module, set).Set(cpu)
-						counter.WithLabelValues(host, module, set, path, status).Inc()
-						histogram.WithLabelValues(host, module, set, path, status).Observe(generateRequestTime())
-						summary.WithLabelValues(host, module, set, path, status).Observe(generateResponseSize())
+					cpuKey := fmt.Sprintf("%d.%d", m, s)
+					cpu, ok := cpuPercent[cpuKey]
+					if !ok {
+						cpu = (float64)(40 + rand.Intn(40))
 					}
+					// change cpu percent +/- 2 range
+					cpu = math.Abs(cpu + (float64)(2-rand.Intn(5)))
+					cpuPercent[cpuKey] = cpu
+
+					gaugeLabelValues := []string{host, module, set}
+					labelValues := []string{host, module, set, path, status}
+					if len(cfg.JobName) > 0 {
+						gaugeLabelValues = append(gaugeLabelValues, cfg.JobName)
+						labelValues = append(labelValues, cfg.JobName)
+					}
+					gauge.WithLabelValues(gaugeLabelValues...).Set(cpu)
+					counter.WithLabelValues(labelValues...).Inc()
+					histogram.WithLabelValues(labelValues...).Observe(generateRequestTime())
+					summary.WithLabelValues(labelValues...).Observe(generateResponseSize())
 				}
 			}
+
 			time.Sleep(sleepTime)
 		}
 	}()
 
-	http.Handle("/metrics", promhttp.HandlerFor(reg, promhttp.HandlerOpts{}))
-	return http.ListenAndServe(addr, nil)
+	if !strings.HasPrefix(cfg.MetricsPath, "/") {
+		cfg.MetricsPath = "/" + cfg.MetricsPath
+	}
+	http.Handle(cfg.MetricsPath, promhttp.HandlerFor(reg, promhttp.HandlerOpts{}))
+	if cfg.TlsEnabled {
+		return http.ListenAndServeTLS(cfg.Address, cfg.TlsCertPath, cfg.TlsKeyPath, nil)
+	}
+	return http.ListenAndServe(cfg.Address, nil)
 }
 
 // return value based on probability density
